@@ -1,0 +1,4 @@
+model,family,n_features,cv_mape,cv_std,cv_se,test_b2_mape,test_b3_mape,valid_mape
+linear[core+qd_initial],linear,2,6.869,2.164,0.306,44.825,10.623,7.013
+linear[core+qd_rise],linear,2,7.848,1.832,0.259,21.555,21.894,8.209
+linear[core],linear,1,9.281,3.006,0.425,26.175,13.253,8.871

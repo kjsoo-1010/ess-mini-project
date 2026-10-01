@@ -1,0 +1,10 @@
+구분,MAPE (%),비고
+Train (Batch 1 CV),9.28,Train 셀의 반복 5-fold 교차검증 평균
+Valid (Batch 1 Hold-out),8.87,Train 셀로 학습
+Test (Batch 2),26.17,Batch 1 전체로 학습
+Gap (Train-Valid),-0.41,(+) : 과적합 의심
+Gap (Valid-Test),17.3,(+) : 배치간 일반화 저하 의심
+Gap (Target-Test),17.07,Target : 원논문 9.1%
+Test (Batch 3),13.25,Batch 1 전체로 학습
+Gap (Batch2-Batch3),-12.92,Test 성능 간 비교
+"Gap (Target-Test, Batch 3)",4.15,"Batch 3 기준, 원논문 성능 비교"
