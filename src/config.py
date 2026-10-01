@@ -23,6 +23,7 @@ MAX_VALID_CAPACITY_AH = 1.3
 EARLY_CYCLES = 100  # Regression 입력: 초기 100 사이클
 SHORT_LIFE_THRESHOLD = 550  # 장/단수명 구분 기준 (가이드)
 TARGET_MAPE = 9.1  # 원논문 성능 (%)
+SCREENING_ALPHA = 0.1  # 단수명 선별에서 예측 하한의 수준 (1 - alpha = 90%)
 
 SEED = 42
 

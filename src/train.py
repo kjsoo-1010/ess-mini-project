@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 
 from src import config, models, report
-from src.evaluation import Split, compare_models, fit_predict, mape, select_model, split_train_valid
+from src.evaluation import EvalCase, Split, compare_models, fit_predict, mape, select_model, split_train_valid
 from src.features import available_features, build_feature_table
 from src.models import ModelSpec
 from src.preprocess import load_dataset
@@ -67,20 +67,27 @@ def build_candidates(features: pd.DataFrame) -> list[ModelSpec]:
     )
 
 
-def predict_splits(spec: ModelSpec, data: ExperimentData) -> pd.DataFrame:
-    """Valid 는 Train 셀로, 테스트 배치는 Batch 1 전체로 학습해 예측한다."""
-    X, cells, split = data.features, data.cells, data.split
-    y = cells["cycle_life"]
-    full_train = data.train_batch_keys
-    parts = [("valid", split.valid, fit_predict(spec, X.loc[split.train], y[split.train], X.loc[split.valid]))]
-    for name, batch in TEST_SPLITS.items():
-        keys = cells.index[cells["batch"] == batch]
-        parts.append((name, keys, fit_predict(spec, X.loc[full_train], y[full_train], X.loc[keys])))
+def evaluation_cases(data: ExperimentData) -> list[EvalCase]:
+    """Valid 는 Train 셀로, 테스트 배치는 Batch 1 전체로 학습해 평가한다."""
+    cells = data.cells
+    tests = [
+        EvalCase(name, data.train_batch_keys, cells.index[cells["batch"] == batch])
+        for name, batch in TEST_SPLITS.items()
+    ]
+    return [EvalCase("valid", data.split.train, data.split.valid), *tests]
 
+
+def predict_splits(spec: ModelSpec, data: ExperimentData) -> pd.DataFrame:
+    """평가 건마다 학습과 예측을 수행해 셀별 예측 표를 만든다."""
+    X, cells = data.features, data.cells
+    y = cells["cycle_life"]
     frames = []
-    for name, keys, predicted in parts:
-        frame = cells.loc[keys, ["batch", "policy", "cycle_life"]].assign(split=name, predicted=predicted)
-        frames.append(frame.join(X.loc[keys, list(spec.features)]))
+    for case in evaluation_cases(data):
+        predicted = fit_predict(spec, X.loc[case.fit_keys], y[case.fit_keys], X.loc[case.eval_keys])
+        frame = cells.loc[case.eval_keys, ["batch", "policy", "cycle_life"]].assign(
+            split=case.name, predicted=predicted
+        )
+        frames.append(frame.join(X.loc[case.eval_keys, list(spec.features)]))
     out = pd.concat(frames)
     out["ape"] = (out["predicted"] - out["cycle_life"]).abs() / out["cycle_life"] * 100
     return out

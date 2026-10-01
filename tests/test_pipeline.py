@@ -4,9 +4,19 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from src.evaluation import classification_metrics, mape, select_model, split_train_valid
+from src.evaluation import (
+    EvalCase,
+    Split,
+    classification_metrics,
+    mape,
+    screening_metrics,
+    select_model,
+    split_train_valid,
+)
 from src.features import build_feature_table
 from src.preprocess import Dataset, clean_summary
+from src.screening import FeatureSet, MahalanobisDetector, conformal_margin, detector_screen, lower_bound
+from src.train import ExperimentData
 
 N_CELLS, N_CYCLES, N_POINTS = 6, 120, 50
 
@@ -108,3 +118,43 @@ def test_classification_metrics_use_threshold_on_predicted_life() -> None:
     result = classification_metrics(y_true=[400, 450, 900, 1000], y_pred=[500, 600, 800, 1200])
     assert result["accuracy"] == pytest.approx(0.75)  # 450 을 600 으로 예측해 장수명으로 오분류
     assert result["auc"] == pytest.approx(1.0)  # 순위는 완전히 맞음
+
+
+def test_conformal_margin_uses_finite_sample_rank() -> None:
+    ratios = np.arange(1, 11) / 100  # 0.01 ~ 0.10, 표본 10개
+    assert conformal_margin(ratios, alpha=0.2) == pytest.approx(0.09)  # ceil(11 * 0.8) = 9번째
+    assert conformal_margin(ratios, alpha=0.05) == pytest.approx(0.10)  # 순위가 표본 수를 넘으면 최댓값
+
+
+def test_lower_bound_flags_cells_near_threshold() -> None:
+    predicted = np.array([500.0, 600.0, 700.0])
+    bound = lower_bound(predicted, margin=np.log10(1.2))
+    assert bound == pytest.approx(predicted / 1.2)
+    assert (bound < 550).tolist() == [True, True, False]  # 600 은 하한이 500 이라 단수명으로 판정
+
+
+def test_screening_metrics_report_recall_and_false_alarm() -> None:
+    result = screening_metrics(
+        true_short=[True, True, False, False], flagged=[True, False, True, False], risk_score=[3, 2, 1, 0]
+    )
+    assert result["recall_short"] == pytest.approx(0.5)
+    assert result["false_alarm"] == pytest.approx(0.5)
+    assert result["auc"] == pytest.approx(1.0)
+
+
+def test_detector_is_fit_on_long_cells_of_the_training_side_only() -> None:
+    """평가 셀의 값을 바꿔도 탐지 기준(정상 셀의 분포)이 달라지지 않아야 한다."""
+    rng = np.random.default_rng(0)
+    keys = pd.Index([f"c{i}" for i in range(30)])
+    table = pd.DataFrame({"x": rng.normal(size=30)}, index=keys)
+    cells = pd.DataFrame({"cycle_life": 800}, index=keys)
+    data = ExperimentData(features=table, cells=cells, split=Split(train=keys[:20], valid=keys[20:]))
+    case = EvalCase("valid", keys[:20], keys[20:])
+
+    def flags(eval_value: float) -> np.ndarray:
+        changed = table.copy()
+        changed.loc[keys[21:], "x"] = eval_value  # 첫 평가 셀(c20)만 그대로 둔다
+        return detector_screen(data, FeatureSet("x", changed), MahalanobisDetector)(case).flagged
+
+    assert flags(0.0)[0] == flags(50.0)[0]  # 다른 평가 셀이 달라져도 c20 의 판정은 같다
+    assert flags(50.0)[1:].all()  # 정상 범위를 크게 벗어난 값은 이상으로 판정

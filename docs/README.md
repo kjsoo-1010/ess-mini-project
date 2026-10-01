@@ -29,7 +29,8 @@
 │   ├── evaluation.py           분할, 교차검증, 지표, 모델 선택
 │   ├── report.py               리포팅 표와 그림
 │   ├── train.py                공식 실험 파이프라인
-│   └── analysis.py             사후 분석
+│   ├── analysis.py             사후 분석
+│   └── screening.py            단수명 셀 선별 실험
 ├── tests/
 │   └── test_pipeline.py
 ├── results/
@@ -38,6 +39,7 @@
 │   ├── classification.csv      550 사이클 기준 분류 성능
 │   ├── predictions.csv         셀별 예측
 │   ├── posthoc_*.csv           사후 분석
+│   ├── screening_*.csv         단수명 셀 선별 실험
 │   └── figures/
 ├── requirements.txt
 └── README.md
@@ -52,6 +54,7 @@ pip install -r requirements.txt     # 또는 uv sync
 
 python -m src.train                 # 학습과 평가. 결과는 results/ 에 저장
 python -m src.analysis              # 사후 분석
+python -m src.screening             # 단수명 셀 선별 실험
 python -m pytest                    # 테스트
 ```
 
@@ -143,6 +146,18 @@ Gap 은 "뒤 단계 − 앞 단계"로 계산했다. 양수면 뒤 단계에서 
 | Batch 3 | 39 / 1 | 0.975 | 0.987 | 1.000 |
 
 학습 데이터에 단수명 셀이 1개뿐이어서 분류 모델을 직접 학습할 수 없었다. 대신 회귀 모델의 예측 수명으로 판정했다. 입력이 초기 100 사이클이므로 원논문의 분류 실험(초기 5 사이클)과는 조건이 다르다. AUC 가 1.00이라는 것은 예측 수명 순으로 줄을 세우면 단수명 셀이 빠짐없이 앞에 온다는 뜻이다. Accuracy 가 낮은 것은 순서가 아니라 기준선의 위치가 어긋났기 때문이다.
+
+**추가 실험 : 예측 하한으로 판정.** 기준선 문제를 풀기 위해 zero-shot 학습과 이상 탐지 문헌의 기법을 적용했다. 예측 수명 그대로가 아니라 **예측의 하한**(conformal prediction, 수준 90%)이 550 미만이면 단수명으로 판정한다. 하한의 여유는 Batch 1 의 leave-one-out 잔차로만 정했다.
+
+| 평가 대상 | Accuracy | F1 (장수명) | F1 (단수명) | 단수명 검출률 | 오경보율 |
+|---|---|---|---|---|---|
+| Batch 1 (leave-one-out) | 0.875 | 0.931 | 0.333 | 1.000 | 0.129 |
+| Batch 2 | 0.949 | 0.900 | 0.966 | 0.933 | 0.000 |
+| Batch 3 | 0.975 | 0.987 | 0.667 | 1.000 | 0.026 |
+
+Batch 2 의 단수명 셀 30개 중 28개를 라벨 없이 가려냈다. 대가로 Batch 1 내부에서 장수명 셀의 13%를 단수명으로 판정한다. One-class 이상 탐지(Mahalanobis, Isolation Forest, One-Class SVM, LOF)도 시도했으나, 수명이 아니라 배치 차이를 이상으로 잡아 실패했다. 이 실험은 테스트 결과를 본 뒤에 추가한 것이고 수준 90%도 그 뒤에 확정했으므로, 위 성능 표와 같은 무게로 읽으면 안 된다. 자세한 내용은 [DAY2_MODELING.md](DAY2_MODELING.md) 9절에 있다.
+
+![Screening by lower bound](../results/figures/screening_lower_bound.png)
 
 ![Observed vs Predicted](../results/figures/observed_vs_predicted.png)
 

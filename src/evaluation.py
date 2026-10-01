@@ -37,6 +37,15 @@ class Split:
     valid: pd.Index
 
 
+@dataclass(frozen=True)
+class EvalCase:
+    """평가 한 건: fit_keys 셀로 학습해 eval_keys 셀을 평가한다."""
+
+    name: str
+    fit_keys: pd.Index
+    eval_keys: pd.Index
+
+
 def split_train_valid(cycle_life: pd.Series, valid_size: float = 0.2, seed: int = config.SEED) -> Split:
     """셀 단위 Hold-out 분할. 수명 구간별 비율을 유지한다."""
     splitter = StratifiedShuffleSplit(n_splits=1, test_size=valid_size, random_state=seed)
@@ -100,19 +109,29 @@ def select_model(comparison: pd.DataFrame, incumbent: str) -> str:
     return incumbent if challengers.empty else str(challengers["cv_mape"].idxmin())
 
 
+def screening_metrics(true_short: np.ndarray, flagged: np.ndarray, risk_score: np.ndarray) -> dict:
+    """단수명 선별 성능.
+
+    flagged    : 단수명으로 판정했는가
+    risk_score : 클수록 단수명일 가능성이 높다고 본 점수. AUC 에만 쓰며 판정 기준선의 위치와 무관하다
+    """
+    true_short, flagged = np.asarray(true_short, dtype=bool), np.asarray(flagged, dtype=bool)
+    has_both = true_short.any() and not true_short.all()
+    return {
+        "n_long": int((~true_short).sum()),
+        "n_short": int(true_short.sum()),
+        "accuracy": accuracy_score(true_short, flagged),
+        "f1_long": f1_score(~true_short, ~flagged, zero_division=0),
+        "f1_short": f1_score(true_short, flagged, zero_division=0),
+        "recall_short": flagged[true_short].mean() if true_short.any() else np.nan,  # 단수명 검출률
+        "false_alarm": flagged[~true_short].mean() if (~true_short).any() else np.nan,  # 장수명을 단수명으로 판정
+        "auc": roc_auc_score(true_short, risk_score) if has_both else np.nan,
+    }
+
+
 def classification_metrics(
     y_true: np.ndarray, y_pred: np.ndarray, threshold: int = config.SHORT_LIFE_THRESHOLD
 ) -> dict:
-    """예측 수명을 기준선으로 나눠 장/단수명 분류 성능을 구한다. 양성 = 장수명(수명 >= threshold)."""
-    true_long = np.asarray(y_true) >= threshold
-    pred_long = np.asarray(y_pred) >= threshold
-    has_both = true_long.any() and not true_long.all()
-    return {
-        "n_long": int(true_long.sum()),
-        "n_short": int((~true_long).sum()),
-        "accuracy": accuracy_score(true_long, pred_long),
-        "f1_long": f1_score(true_long, pred_long, zero_division=0),
-        "f1_short": f1_score(~true_long, ~pred_long, zero_division=0),
-        # AUC: 예측 수명이 긴 순서가 실제 장/단수명을 얼마나 잘 가르는가. 기준선 위치와 무관하다
-        "auc": roc_auc_score(true_long, y_pred) if has_both else np.nan,
-    }
+    """예측 수명을 기준선으로 나눠 장/단수명 분류 성능을 구한다."""
+    y_true, y_pred = np.asarray(y_true, dtype=float), np.asarray(y_pred, dtype=float)
+    return screening_metrics(y_true < threshold, y_pred < threshold, risk_score=-y_pred)

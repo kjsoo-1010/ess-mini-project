@@ -108,3 +108,30 @@ def plot_feature_fit(features: pd.DataFrame, cells: pd.DataFrame, feature: str, 
     fig.tight_layout()
     fig.savefig(path, dpi=150)
     plt.close(fig)
+
+
+def plot_lower_bounds(predictions: pd.DataFrame, path: Path) -> None:
+    """셀마다 예측 수명(빈 원)과 그 하한(채운 원)을 그린다. 하한이 가로 점선 아래면 단수명으로 판정한다."""
+    fig, ax = plt.subplots(figsize=(8, 7))
+    for split, g in predictions.groupby("split"):
+        color = SPLIT_COLORS[split]
+        ax.vlines(g["cycle_life"], g["lower_bound"], g["predicted"], color=color, linewidth=0.8, alpha=0.5)
+        ax.scatter(g["cycle_life"], g["predicted"], facecolors="none", edgecolors=color, s=35)
+        ax.scatter(g["cycle_life"], g["lower_bound"], color=color, s=35, label=SPLIT_LABELS[split])
+    lim = [predictions["lower_bound"].min() * 0.9, predictions[["cycle_life", "predicted"]].max().max() * 1.1]
+    ax.plot(lim, lim, color="gray", linestyle="--", linewidth=1)
+    for axis_line in (ax.axvline, ax.axhline):
+        axis_line(config.SHORT_LIFE_THRESHOLD, color="gray", linestyle=":", linewidth=1)
+    ax.set(
+        xscale="log",
+        yscale="log",
+        xlim=lim,
+        ylim=lim,
+        xlabel="Observed Cycle Life",
+        ylabel="Predicted Cycle Life (hollow) and its lower bound (filled)",
+        title="Screening by the lower bound of predicted life",
+    )
+    ax.legend()
+    fig.tight_layout()
+    fig.savefig(path, dpi=150)
+    plt.close(fig)
