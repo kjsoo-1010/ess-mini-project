@@ -9,9 +9,5 @@ wheels/
 # Virtual environments
 .venv
 
-# docs / notebooks
-/notebooks
-/docs
-
 # data
 data/
