@@ -17,6 +17,7 @@ from src.features import build_feature_table
 from src.preprocess import Dataset, clean_summary
 from src.screening import FeatureSet, MahalanobisDetector, conformal_margin, detector_screen, lower_bound
 from src.train import ExperimentData
+from src.zeroshot import LinearGaussianGenerator, ZeroShotClassifier, select_spec
 
 N_CELLS, N_CYCLES, N_POINTS = 6, 120, 50
 
@@ -158,3 +159,55 @@ def test_detector_is_fit_on_long_cells_of_the_training_side_only() -> None:
 
     assert flags(0.0)[0] == flags(50.0)[0]  # 다른 평가 셀이 달라져도 c20 의 판정은 같다
     assert flags(50.0)[1:].all()  # 정상 범위를 크게 벗어난 값은 이상으로 판정
+
+
+def _linear_cells(n: int = 40, seed: int = 0) -> tuple[pd.DataFrame, pd.Series]:
+    """피처가 log10(수명)에 선형으로 비례하는 합성 셀. 수명은 600 ~ 2000."""
+    rng = np.random.default_rng(seed)
+    life = pd.Series(np.linspace(600, 2000, n), index=[f"c{i}" for i in range(n)])
+    feature = -2.0 * np.log10(life) + rng.normal(0, 0.02, n)
+    return pd.DataFrame({"x": feature}), life
+
+
+def test_generator_recovers_linear_relation_and_extrapolates() -> None:
+    X, life = _linear_cells()
+    generator = LinearGaussianGenerator.fit(X.to_numpy(), life.to_numpy())
+    assert generator.coef[1, 0] == pytest.approx(-2.0, abs=0.1)
+    synthetic = generator.sample((150, 550), 500, np.random.default_rng(0))
+    assert synthetic.min() > X["x"].max()  # 더 짧은 수명의 피처는 본 셀들의 범위 밖에 만들어진다
+
+
+def test_zero_shot_classifier_flags_cells_shorter_than_any_training_cell() -> None:
+    X, life = _linear_cells()
+    model = ZeroShotClassifier(("x",)).fit(X, life)
+    unseen = pd.DataFrame({"x": -2.0 * np.log10([300.0, 400.0])})
+    seen = pd.DataFrame({"x": -2.0 * np.log10([900.0, 1500.0])})
+    assert (model.short_probability(unseen) > 0.5).all()
+    assert (model.short_probability(seen) < 0.5).all()
+
+
+def test_zero_shot_classifier_ignores_cells_below_boundary_when_fitting() -> None:
+    """기준선보다 짧은 셀은 학습에 쓰지 않으므로, 그 셀의 값이 달라져도 모델이 같아야 한다."""
+    X, life = _linear_cells()
+    life.iloc[0] = 400  # 단수명 셀 하나
+    tampered = X.copy()
+    tampered.iloc[0, 0] = 99.0
+    probe = pd.DataFrame({"x": -2.0 * np.log10([500.0, 700.0])})
+    original = ZeroShotClassifier(("x",)).fit(X, life).short_probability(probe)
+    changed = ZeroShotClassifier(("x",)).fit(tampered, life).short_probability(probe)
+    assert original == pytest.approx(changed)
+
+
+def test_select_spec_prefers_higher_h_then_fewer_features() -> None:
+    validation = pd.DataFrame(
+        {
+            "features": ["a", "a+b", "a+c"],
+            "n_features": [1, 2, 2],
+            "decision": [0.2, 0.1, 0.3],
+            "unseen_recall": [0.8, 0.8, 0.9],
+            "seen_accuracy": [0.8, 0.8, 0.9],
+            "h": [0.8, 0.8, 0.9],
+        }
+    )
+    assert select_spec(validation).name == "a+c"
+    assert select_spec(validation[validation["features"] != "a+c"]).name == "a"  # 동률이면 피처가 적은 쪽

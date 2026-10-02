@@ -12,6 +12,7 @@ from dataclasses import dataclass
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 
 from src import config
 from src.preprocess import Dataset
@@ -92,6 +93,21 @@ def _qd_rise(ds: Dataset) -> np.ndarray:
     return smoothed.max(axis=1).to_numpy() - value_near(qd, 2)
 
 
+def _dq(ds: Dataset) -> np.ndarray:
+    return delta_q(ds, late=ds.n_cycles, early=10)
+
+
+def _log_abs(values: np.ndarray) -> np.ndarray:
+    return np.log10(np.abs(values))
+
+
+def _qd_slope(ds: Dataset, first_cycle: int) -> np.ndarray:
+    """first_cycle 부터 마지막 사이클까지 용량의 선형 추세 기울기 (mAh / cycle). 결측 사이클은 건너뛴다."""
+    qd = summary_matrix(ds, "QD").loc[:, first_cycle:]
+    cycles = qd.columns.to_numpy(dtype=float)
+    return np.array([np.polyfit(cycles[row.notna()], row.dropna(), 1)[0] * 1000 for _, row in qd.iterrows()])
+
+
 FEATURES: dict[str, Feature] = {
     f.name: f
     for f in (
@@ -104,6 +120,19 @@ FEATURES: dict[str, Feature] = {
         # 아래 두 개는 사후 분석용이다. DAY 1 전략의 후보 피처가 아니다
         Feature("qd_initial", "초기 용량의 절대 수준: cycle 2 용량 (Ah)", _qd_initial),
         Feature("qd_rise", "초기 용량 상승폭: 평활화한 최대 용량 - cycle 2 용량 (Ah)", _qd_rise),
+        # zero-shot 분류의 후보 피처. 원논문의 후보 피처 중 용량의 절대 수준과 내부저항을 뺀 것이다
+        Feature("log_dq_min", "log10 |min ΔQ(V)|", lambda ds: _log_abs(_dq(ds).min(axis=1))),
+        Feature("log_dq_mean", "log10 |mean ΔQ(V)|", lambda ds: _log_abs(_dq(ds).mean(axis=1))),
+        Feature("log_dq_skew", "log10 |skewness of ΔQ(V)|", lambda ds: _log_abs(stats.skew(_dq(ds), axis=1))),
+        Feature("log_dq_kurt", "log10 |kurtosis of ΔQ(V)|", lambda ds: _log_abs(stats.kurtosis(_dq(ds), axis=1))),
+        Feature("log_dq_at_2v", "log10 |ΔQ(V = 2.0 V)|. 전압 축의 마지막 지점", lambda ds: _log_abs(_dq(ds)[:, -1])),
+        Feature("qd_slope", "용량 추세의 기울기, cycle 2 ~ 마지막 (mAh / cycle)", lambda ds: _qd_slope(ds, 2)),
+        Feature(
+            "qd_slope_late",
+            "용량 추세의 기울기, 마지막 10 사이클 (mAh / cycle)",
+            lambda ds: _qd_slope(ds, ds.n_cycles - 9),
+        ),
+        Feature("tmax_max", "최고 온도의 최댓값 (°C)", lambda ds: summary_matrix(ds, "Tmax").max(axis=1).to_numpy()),
     )
 }
 

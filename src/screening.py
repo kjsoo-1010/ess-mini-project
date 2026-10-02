@@ -18,7 +18,7 @@ from __future__ import annotations
 import argparse
 import math
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +27,7 @@ from sklearn.base import BaseEstimator
 from sklearn.covariance import EmpiricalCovariance
 from sklearn.decomposition import PCA
 from sklearn.ensemble import IsolationForest
+from sklearn.linear_model import LinearRegression
 from sklearn.mixture import GaussianMixture
 from sklearn.model_selection import LeaveOneOut
 from sklearn.neighbors import LocalOutlierFactor
@@ -35,7 +36,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.svm import OneClassSVM
 
 from src import config, models, report
-from src.evaluation import EvalCase, fit_predict, screening_metrics
+from src.evaluation import EvalCase, fit_predict, mape, screening_metrics
 from src.features import delta_q
 from src.models import ModelSpec
 from src.preprocess import Dataset, load_dataset
@@ -43,6 +44,8 @@ from src.train import INCUMBENT, ExperimentData, build_candidates, evaluation_ca
 
 THRESHOLD = config.SHORT_LIFE_THRESHOLD
 SENSITIVITY_ALPHAS = (0.2, 0.1, 0.05)
+# (입력 사이클 수, ΔQ(V) 의 기준 사이클). 5 사이클 입력은 가이드의 Classification 조건이고 (5, 4) 는 원논문의 정의다
+INPUT_WINDOWS = ((100, 10), (5, 4), (5, 2))
 SUMMARY_FEATURES = (models.CORE_FEATURE, "qd_rise", "qd_initial", "chargetime_median", "tavg_mean")
 NORMAL_ACCEPT_RATE = 0.95  # 탐지기의 판정 기준: 학습한 정상 셀의 95% 를 정상으로 받아들이는 점수
 
@@ -200,6 +203,11 @@ def leave_one_out_cases(data: ExperimentData) -> list[EvalCase]:
     return [EvalCase("train_loo", train.drop(key), pd.Index([key])) for key in train]
 
 
+def all_splits(data: ExperimentData) -> dict[str, list[EvalCase]]:
+    """Train (leave-one-out), Valid, 테스트 배치의 평가 건."""
+    return {"train_loo": leave_one_out_cases(data), **{case.name: [case] for case in evaluation_cases(data)}}
+
+
 def evaluate_screen(screen: Screen, cases: list[EvalCase], cycle_life: pd.Series) -> dict:
     """여러 평가 건의 판정을 모아 성능을 구한다."""
     verdicts = [screen(case) for case in cases]
@@ -242,7 +250,7 @@ def sensitivity_table(
     data: ExperimentData, predict: Predictor, alphas: tuple[float, ...] = SENSITIVITY_ALPHAS
 ) -> pd.DataFrame:
     """하한의 수준을 바꿨을 때의 성능. margin_factor 는 예측 수명을 나누는 배율이다."""
-    splits = {"train_loo": leave_one_out_cases(data), **{case.name: [case] for case in evaluation_cases(data)}}
+    splits = all_splits(data)
     cycle_life = data.cells["cycle_life"]
     rows = []
     for alpha in alphas:
@@ -253,6 +261,41 @@ def sensitivity_table(
                 {"level": 1 - alpha, "split": split, "margin_factor": 10**margin}
                 | evaluate_screen(screen, cases, cycle_life)
             )
+    return pd.DataFrame(rows)
+
+
+def window_feature(dataset: Dataset, n_cycles: int, reference: int) -> pd.Series:
+    """초기 n_cycles 사이클만으로 계산한 log10 var(Q_n(V) - Q_reference(V))."""
+    early = dataset.early_window(n_cycles)
+    values = np.log10(np.var(delta_q(early, late=n_cycles, early=reference), axis=1))
+    return pd.Series(values, index=early.cells.index, name=f"log_dq_var[{n_cycles}-{reference}]")
+
+
+def input_window_table(data: ExperimentData, dataset: Dataset, alpha: float = config.SCREENING_ALPHA) -> pd.DataFrame:
+    """입력 사이클 수를 바꿨을 때의 회귀 오차와 선별 성능. 창마다 그 창의 피처 하나로 선형 회귀를 다시 맞춘다."""
+    cycle_life = data.cells["cycle_life"]
+    rows = []
+    for n_cycles, reference in INPUT_WINDOWS:
+        feature = window_feature(dataset, n_cycles, reference)
+        spec = ModelSpec(f"linear[{feature.name}]", "linear", (feature.name,), LinearRegression)
+        predict = Predictor(replace(data, features=feature.to_frame()), spec)
+        screens = {"threshold": threshold_screen(predict), "lower_bound": lower_bound_screen(predict, alpha)}
+        for split, cases in all_splits(data).items():
+            predicted = np.concatenate([predict(case)[0] for case in cases])
+            actual = cycle_life.loc[np.concatenate([case.eval_keys for case in cases])]
+            margin = np.mean([conformal_margin(predict(case)[1], alpha) for case in cases])
+            for rule, screen in screens.items():
+                rows.append(
+                    {
+                        "input_cycles": n_cycles,
+                        "reference_cycle": reference,
+                        "split": split,
+                        "mape": mape(actual, predicted),
+                        "rule": rule,
+                        "margin_factor": 10**margin if rule == "lower_bound" else 1.0,
+                    }
+                    | evaluate_screen(screen, cases, cycle_life)
+                )
     return pd.DataFrame(rows)
 
 
@@ -277,9 +320,11 @@ def main() -> None:
 
     data = prepare_data(args.seed)
     predict = Predictor(data, next(s for s in build_candidates(data.features) if s.name == INCUMBENT))
+    dataset = load_dataset()
     tables = {
-        "screening_performance": performance_table(data, load_dataset(), predict),
+        "screening_performance": performance_table(data, dataset, predict),
         "screening_sensitivity": sensitivity_table(data, predict),
+        "screening_input_window": input_window_table(data, dataset),
     }
     predictions = lower_bound_predictions(data, predict)
 

@@ -1,0 +1,57 @@
+config,features,decision,split,n_long,n_short,accuracy,f1_long,f1_short,recall_short,false_alarm,auc
+"core, decision 0.5",log_dq_var,0.5,train_loo,31,1,0.969,0.984,0.667,1.0,0.032,0.968
+"core, decision 0.5",log_dq_var,0.5,valid,9,0,1.0,1.0,0.0,,0.0,
+"core, decision 0.5",log_dq_var,0.5,test_b2,9,30,0.538,0.5,0.571,0.4,0.0,1.0
+"core, decision 0.5",log_dq_var,0.5,test_b3,39,1,0.975,0.987,0.0,0.0,0.0,1.0
+selected,log_dq_var+qd_rise,0.1,train_loo,31,1,0.875,0.931,0.333,1.0,0.129,0.935
+selected,log_dq_var+qd_rise,0.1,valid,9,0,0.889,0.941,0.0,,0.111,
+selected,log_dq_var+qd_rise,0.1,test_b2,9,30,0.974,0.947,0.983,0.967,0.0,1.0
+selected,log_dq_var+qd_rise,0.1,test_b3,39,1,0.975,0.987,0.0,0.0,0.0,1.0
+candidate: log_dq_var+log_dq_at_2v,log_dq_var+log_dq_at_2v,0.1,train_loo,31,1,0.875,0.931,0.333,1.0,0.129,0.935
+candidate: log_dq_var+log_dq_at_2v,log_dq_var+log_dq_at_2v,0.1,valid,9,0,0.889,0.941,0.0,,0.111,
+candidate: log_dq_var+log_dq_at_2v,log_dq_var+log_dq_at_2v,0.1,test_b2,9,30,0.949,0.9,0.966,0.933,0.0,1.0
+candidate: log_dq_var+log_dq_at_2v,log_dq_var+log_dq_at_2v,0.1,test_b3,39,1,1.0,1.0,1.0,1.0,0.0,1.0
+candidate: log_dq_var+chargetime_median,log_dq_var+chargetime_median,0.1,train_loo,31,1,0.875,0.931,0.333,1.0,0.129,0.968
+candidate: log_dq_var+chargetime_median,log_dq_var+chargetime_median,0.1,valid,9,0,0.889,0.941,0.0,,0.111,
+candidate: log_dq_var+chargetime_median,log_dq_var+chargetime_median,0.1,test_b2,9,30,0.949,0.9,0.966,0.933,0.0,1.0
+candidate: log_dq_var+chargetime_median,log_dq_var+chargetime_median,0.1,test_b3,39,1,0.975,0.987,0.667,1.0,0.026,1.0
+candidate: log_dq_var+tmax_max,log_dq_var+tmax_max,0.2,train_loo,31,1,0.875,0.931,0.333,1.0,0.129,0.871
+candidate: log_dq_var+tmax_max,log_dq_var+tmax_max,0.2,valid,9,0,0.889,0.941,0.0,,0.111,
+candidate: log_dq_var+tmax_max,log_dq_var+tmax_max,0.2,test_b2,9,30,0.744,0.643,0.8,0.667,0.0,1.0
+candidate: log_dq_var+tmax_max,log_dq_var+tmax_max,0.2,test_b3,39,1,1.0,1.0,1.0,1.0,0.0,1.0
+candidate: log_dq_var,log_dq_var,0.2,train_loo,31,1,0.906,0.949,0.4,1.0,0.097,0.968
+candidate: log_dq_var,log_dq_var,0.2,valid,9,0,0.889,0.941,0.0,,0.111,
+candidate: log_dq_var,log_dq_var,0.2,test_b2,9,30,0.872,0.783,0.909,0.833,0.0,1.0
+candidate: log_dq_var,log_dq_var,0.2,test_b3,39,1,1.0,1.0,1.0,1.0,0.0,1.0
+candidate: log_dq_var+log_dq_min,log_dq_var+log_dq_min,0.2,train_loo,31,1,0.875,0.931,0.333,1.0,0.129,0.968
+candidate: log_dq_var+log_dq_min,log_dq_var+log_dq_min,0.2,valid,9,0,0.889,0.941,0.0,,0.111,
+candidate: log_dq_var+log_dq_min,log_dq_var+log_dq_min,0.2,test_b2,9,30,0.872,0.783,0.909,0.833,0.0,1.0
+candidate: log_dq_var+log_dq_min,log_dq_var+log_dq_min,0.2,test_b3,39,1,1.0,1.0,1.0,1.0,0.0,1.0
+candidate: log_dq_var+log_dq_mean,log_dq_var+log_dq_mean,0.2,train_loo,31,1,0.875,0.931,0.333,1.0,0.129,0.968
+candidate: log_dq_var+log_dq_mean,log_dq_var+log_dq_mean,0.2,valid,9,0,0.889,0.941,0.0,,0.111,
+candidate: log_dq_var+log_dq_mean,log_dq_var+log_dq_mean,0.2,test_b2,9,30,0.872,0.783,0.909,0.833,0.0,1.0
+candidate: log_dq_var+log_dq_mean,log_dq_var+log_dq_mean,0.2,test_b3,39,1,1.0,1.0,1.0,1.0,0.0,1.0
+candidate: log_dq_var+log_dq_skew,log_dq_var+log_dq_skew,0.2,train_loo,31,1,0.906,0.949,0.4,1.0,0.097,1.0
+candidate: log_dq_var+log_dq_skew,log_dq_var+log_dq_skew,0.2,valid,9,0,0.889,0.941,0.0,,0.111,
+candidate: log_dq_var+log_dq_skew,log_dq_var+log_dq_skew,0.2,test_b2,9,30,0.821,0.72,0.868,0.767,0.0,1.0
+candidate: log_dq_var+log_dq_skew,log_dq_var+log_dq_skew,0.2,test_b3,39,1,0.975,0.987,0.667,1.0,0.026,1.0
+candidate: log_dq_var+log_dq_kurt,log_dq_var+log_dq_kurt,0.2,train_loo,31,1,0.875,0.931,0.333,1.0,0.129,0.903
+candidate: log_dq_var+log_dq_kurt,log_dq_var+log_dq_kurt,0.2,valid,9,0,0.889,0.941,0.0,,0.111,
+candidate: log_dq_var+log_dq_kurt,log_dq_var+log_dq_kurt,0.2,test_b2,9,30,0.692,0.6,0.75,0.6,0.0,1.0
+candidate: log_dq_var+log_dq_kurt,log_dq_var+log_dq_kurt,0.2,test_b3,39,1,0.975,0.987,0.0,0.0,0.0,1.0
+candidate: log_dq_var+tavg_mean,log_dq_var+tavg_mean,0.2,train_loo,31,1,0.875,0.931,0.333,1.0,0.129,0.935
+candidate: log_dq_var+tavg_mean,log_dq_var+tavg_mean,0.2,valid,9,0,0.889,0.941,0.0,,0.111,
+candidate: log_dq_var+tavg_mean,log_dq_var+tavg_mean,0.2,test_b2,9,30,0.718,0.621,0.776,0.633,0.0,1.0
+candidate: log_dq_var+tavg_mean,log_dq_var+tavg_mean,0.2,test_b3,39,1,0.975,0.987,0.667,1.0,0.026,1.0
+candidate: log_dq_var+qd_slope_late,log_dq_var+qd_slope_late,0.1,train_loo,31,1,0.875,0.931,0.333,1.0,0.129,0.871
+candidate: log_dq_var+qd_slope_late,log_dq_var+qd_slope_late,0.1,valid,9,0,0.889,0.941,0.0,,0.111,
+candidate: log_dq_var+qd_slope_late,log_dq_var+qd_slope_late,0.1,test_b2,9,30,0.795,0.692,0.846,0.733,0.0,1.0
+candidate: log_dq_var+qd_slope_late,log_dq_var+qd_slope_late,0.1,test_b3,39,1,0.975,0.987,0.0,0.0,0.0,1.0
+candidate: log_dq_var+qd_fade,log_dq_var+qd_fade,0.1,train_loo,31,1,0.875,0.933,0.0,0.0,0.097,0.774
+candidate: log_dq_var+qd_fade,log_dq_var+qd_fade,0.1,valid,9,0,0.889,0.941,0.0,,0.111,
+candidate: log_dq_var+qd_fade,log_dq_var+qd_fade,0.1,test_b2,9,30,0.974,0.947,0.983,0.967,0.0,1.0
+candidate: log_dq_var+qd_fade,log_dq_var+qd_fade,0.1,test_b3,39,1,0.975,0.987,0.0,0.0,0.0,0.872
+candidate: log_dq_var+qd_slope,log_dq_var+qd_slope,0.1,train_loo,31,1,0.844,0.915,0.0,0.0,0.129,0.774
+candidate: log_dq_var+qd_slope,log_dq_var+qd_slope,0.1,valid,9,0,0.889,0.941,0.0,,0.111,
+candidate: log_dq_var+qd_slope,log_dq_var+qd_slope,0.1,test_b2,9,30,0.974,0.947,0.983,0.967,0.0,1.0
+candidate: log_dq_var+qd_slope,log_dq_var+qd_slope,0.1,test_b3,39,1,0.975,0.987,0.0,0.0,0.0,0.872
