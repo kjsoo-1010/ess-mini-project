@@ -312,11 +312,11 @@ def lower_bound_predictions(
     return pd.concat(frames)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="단수명 셀 선별 실험 (사후 추가 실험)")
     parser.add_argument("--seed", type=int, default=config.SEED)
     parser.add_argument("--out", type=Path, default=config.RESULTS_DIR)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     data = prepare_data(args.seed)
     predict = Predictor(data, next(s for s in build_candidates(data.features) if s.name == INCUMBENT))

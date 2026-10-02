@@ -12,3 +12,6 @@ wheels/
 # data (원본과 가공 데이터는 올리지 않는다. 안내 문서만 올린다)
 data/*
 !data/README.md
+
+# macOS
+.DS_Store

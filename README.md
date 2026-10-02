@@ -33,9 +33,7 @@ Batch 1 과 3 은 원논문의 배치와 같다. **Batch 2 는 원논문에 없�
 ├── data/
 │   └── README.md               데이터 출처와 받는 방법
 ├── docs/
-│   ├── DAY-1.pdf               DAY 1 보고서 : 전처리, EDA, 모델 설계 전략
-│   ├── MODEL_STRATEGY.md       모델 설계 전략
-│   └── DAY2_MODELING.md        모델 개발 기록 : 가설과 검증 과정, 추가 실험의 상세
+│   └── DAY-1.pdf               DAY 1 보고서 : 전처리, EDA, 모델 설계 전략
 ├── notebooks/
 │   └── 30-ESSHealth-scratch.ipynb   EDA
 ├── src/
@@ -53,10 +51,12 @@ Batch 1 과 3 은 원논문의 배치와 같다. **Batch 2 는 원논문에 없�
 ├── tests/
 │   └── test_pipeline.py
 ├── results/
+│   ├── README.md               결과 파일 설명과 실험 기록 (방법, 전체 수치)
 │   ├── model_performance.csv   성능 결과 (리포팅 포맷)
 │   ├── model_comparison.csv    후보 모델 비교
 │   ├── predictions.csv         셀별 예측
 │   └── ...                     추가 분석 결과와 그림
+├── main.py                     전체 파이프라인 실행
 ├── requirements.txt
 └── README.md
 ```
@@ -68,11 +68,12 @@ git clone https://github.com/kjsoo-1010/ess-mini-project
 cd ess-mini-project
 pip install -r requirements.txt     # 또는 uv sync
 
-python -m src.train                 # 학습과 평가 (약 10초). 결과는 results/ 에 저장
+python main.py                      # 전체 파이프라인 : 로딩 -> 피처 -> 모델 선택 -> 평가 (약 10초)
+python main.py --all                # 추가 분석까지 : 오류 분석, 원논문 비교, 단수명 셀 선별 (약 1분)
 python -m pytest                    # 테스트
 ```
 
-데이터(약 5 GB)는 처음 실행할 때 kagglehub 가 자동으로 내려받는다. 추가 분석은 `python -m src.analysis`, `src.replication`, `src.screening`, `src.zeroshot` 으로 각각 재현된다.
+데이터(약 5 GB)는 처음 실행할 때 kagglehub 가 자동으로 내려받는다. 결과는 `results/` 에 저장되며, 단계별 명령과 결과 파일은 [results/README.md](results/README.md)에 정리했다.
 
 ## EDA
 
@@ -207,7 +208,7 @@ DAY 1 설계서에 적은 예상 위험이 그대로 나타났다. "Batch 2 는 
 
 ![Screening by lower bound](results/figures/screening_lower_bound.png)
 
-방법과 전체 수치는 [모델 개발 기록](docs/DAY2_MODELING.md) 9 ~ 10절에 있다.
+방법과 전체 수치는 [실험 기록](results/README.md) 3 ~ 4절에 있다.
 
 ## 오류 분석
 

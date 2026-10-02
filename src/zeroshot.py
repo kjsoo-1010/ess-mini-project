@@ -215,11 +215,11 @@ def selection_stability(data: ExperimentData, seeds: range = range(10)) -> pd.Da
     return pd.DataFrame(rows)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="Zero-shot 분류 실험 (사후 추가 실험)")
     parser.add_argument("--seed", type=int, default=config.SEED)
     parser.add_argument("--out", type=Path, default=config.RESULTS_DIR)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     data = prepare_data(args.seed)
     validation = validate_on_train(data, args.seed)

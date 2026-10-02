@@ -1,6 +1,6 @@
 """프로젝트 전역 설정: 경로, 배치 사양, 도메인 상수.
 
-값의 근거는 docs/MODEL_STRATEGY.md 와 DAY 1 보고서의 "데이터와 전처리"에 정리되어 있다.
+값의 근거는 DAY 1 보고서(docs/DAY-1.pdf)의 "데이터와 전처리"와 "모델 설계 전략"에 정리되어 있다.
 """
 
 from __future__ import annotations

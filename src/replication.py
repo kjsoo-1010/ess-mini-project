@@ -122,7 +122,7 @@ def logistic_screen(data: ExperimentData, features: tuple[str, ...]) -> Screen:
     def screen(case: EvalCase) -> Verdict:
         X = data.features.loc[case.fit_keys, list(features)]
         is_short = data.cells.loc[case.fit_keys, "cycle_life"] < config.SHORT_LIFE_THRESHOLD
-        classifier = LogisticRegression(penalty="l1", solver="liblinear", random_state=config.SEED)
+        classifier = LogisticRegression(l1_ratio=1.0, solver="liblinear", random_state=config.SEED)  # l1 규제
         model = make_pipeline(StandardScaler(), classifier).fit(X, is_short)
         probability = model.predict_proba(data.features.loc[case.eval_keys, list(features)])[:, 1]
         return Verdict(probability >= 0.5, probability)
@@ -150,11 +150,11 @@ def classifier_table(data: ExperimentData, seed: int = config.SEED) -> pd.DataFr
     return pd.DataFrame(rows)
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="원논문 모델 구성의 재구현과 비교")
     parser.add_argument("--seed", type=int, default=config.SEED)
     parser.add_argument("--out", type=Path, default=config.RESULTS_DIR)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     data = prepare_data(args.seed)
     table = comparison_table(data, args.seed)

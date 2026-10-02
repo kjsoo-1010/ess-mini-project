@@ -1,7 +1,7 @@
 [project]
 name = "ess-mini-project"
 version = "0.1.0"
-description = "Add your description here"
+description = "ESS 배터리 수명 예측 : 초기 100 사이클로 셀의 총수명을 예측한다"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [

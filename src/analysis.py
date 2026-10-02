@@ -140,11 +140,11 @@ def policy_grouped_cv(data: ExperimentData, n_splits: int = 5) -> float:
     return float(fold_scores(_incumbent(data), X, y, folds).mean())
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="사후 분석: 오차 진단과 새 가설 검증")
     parser.add_argument("--seed", type=int, default=config.SEED)
     parser.add_argument("--out", type=Path, default=config.RESULTS_DIR)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     data = prepare_data(args.seed)
     predictions = predict_splits(_incumbent(data), data)

@@ -132,11 +132,11 @@ def save_results(result: ExperimentResult, data: ExperimentData, out_dir: Path) 
     report.plot_feature_fit(data.features, data.cells, models.CORE_FEATURE, figures / "core_feature_fit.png")
 
 
-def main() -> None:
+def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="ESS 배터리 수명 예측 모델 학습 및 평가")
     parser.add_argument("--seed", type=int, default=config.SEED)
     parser.add_argument("--out", type=Path, default=config.RESULTS_DIR)
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
 
     data = prepare_data(args.seed)
     result = run_experiment(data, args.seed)
