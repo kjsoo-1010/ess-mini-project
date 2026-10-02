@@ -57,12 +57,22 @@ def value_near(matrix: pd.DataFrame, cycle: int, halfwidth: int = 1) -> np.ndarr
 # --------------------------------------------------------------------------- #
 # 피처 정의
 # --------------------------------------------------------------------------- #
+def reference_cycle(n_cycles: int) -> int:
+    """ΔQ(V) 의 기준 사이클. 입력이 길면 cycle 10, 10 사이클 이하면 마지막 바로 앞 사이클 (원논문의 Q5 - Q4)."""
+    return 10 if n_cycles > 10 else n_cycles - 1
+
+
+def _dq(ds: Dataset, halfwidth: int = 0) -> np.ndarray:
+    """마지막 사이클과 기준 사이클의 ΔQ(V)."""
+    return delta_q(ds, late=ds.n_cycles, early=reference_cycle(ds.n_cycles), halfwidth=halfwidth)
+
+
 def _log_dq_var(ds: Dataset) -> np.ndarray:
-    return np.log10(np.var(delta_q(ds, late=ds.n_cycles, early=10), axis=1))
+    return np.log10(np.var(_dq(ds), axis=1))
 
 
 def _log_dq_var_smooth(ds: Dataset) -> np.ndarray:
-    return np.log10(np.var(delta_q(ds, late=ds.n_cycles, early=10, halfwidth=1), axis=1))
+    return np.log10(np.var(_dq(ds, halfwidth=1), axis=1))
 
 
 def _qd_fade(ds: Dataset) -> np.ndarray:
@@ -93,10 +103,6 @@ def _qd_rise(ds: Dataset) -> np.ndarray:
     return smoothed.max(axis=1).to_numpy() - value_near(qd, 2)
 
 
-def _dq(ds: Dataset) -> np.ndarray:
-    return delta_q(ds, late=ds.n_cycles, early=10)
-
-
 def _log_abs(values: np.ndarray) -> np.ndarray:
     return np.log10(np.abs(values))
 
@@ -119,7 +125,7 @@ def _first_cycles(ds: Dataset, column: str, first: int, last: int) -> pd.DataFra
 FEATURES: dict[str, Feature] = {
     f.name: f
     for f in (
-        Feature("log_dq_var", "log10 var(Q_last(V) - Q_10(V)). 핵심 피처", _log_dq_var),
+        Feature("log_dq_var", "log10 var(Q_last(V) - Q_reference(V)). 핵심 피처", _log_dq_var),
         Feature("log_dq_var_smooth", "log_dq_var 를 인접 3개 사이클의 중앙값 곡선으로 계산", _log_dq_var_smooth),
         Feature("qd_fade", "초기 용량 변화: 마지막 사이클 용량 - cycle 2 용량 (Ah)", _qd_fade),
         Feature("chargetime_median", "충전 시간(0% -> 80%)의 중앙값 (분)", _chargetime_median),

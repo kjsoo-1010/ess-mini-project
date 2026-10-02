@@ -1,0 +1,10 @@
+model,n_features,split,n_long,n_short,accuracy,f1_long,f1_short,recall_short,false_alarm,auc,paper_accuracy
+Variance classifier,1,valid,9,0,1.0,1.0,0.0,,0.0,,
+Variance classifier,1,test_b2,9,30,0.231,0.375,0.0,0.0,0.0,0.5,
+Variance classifier,1,test_b3,39,1,0.975,0.987,0.0,0.0,0.0,0.5,0.975
+Full classifier,18,valid,9,0,1.0,1.0,0.0,,0.0,,
+Full classifier,18,test_b2,6,27,0.455,0.4,0.5,0.333,0.0,0.938,
+Full classifier,18,test_b3,39,1,0.975,0.987,0.0,0.0,0.0,0.051,0.975
+Full classifier (IR 제외),15,valid,9,0,1.0,1.0,0.0,,0.0,,
+Full classifier (IR 제외),15,test_b2,9,30,0.231,0.375,0.0,0.0,0.0,0.0,
+Full classifier (IR 제외),15,test_b3,39,1,0.975,0.987,0.0,0.0,0.0,0.154,

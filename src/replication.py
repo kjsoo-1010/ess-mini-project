@@ -15,12 +15,17 @@ from dataclasses import replace
 from pathlib import Path
 
 import pandas as pd
-from sklearn.linear_model import LinearRegression
+from sklearn.linear_model import LinearRegression, LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.preprocessing import StandardScaler
 
 from src import config, models
-from src.evaluation import split_train_valid
+from src.evaluation import EvalCase, split_train_valid
+from src.features import build_feature_table
 from src.models import ModelSpec
-from src.train import ExperimentData, evaluate_candidates, prepare_data
+from src.preprocess import load_dataset
+from src.screening import Screen, Verdict, evaluate_screen
+from src.train import ExperimentData, evaluate_candidates, evaluation_cases, prepare_data
 
 # 원논문 Supplementary Table 1 의 후보 피처 20개
 DELTA_Q = ("log_dq_min", "log_dq_mean", "log_dq_var", "log_dq_skew", "log_dq_kurt", "log_dq_at_2v")
@@ -49,6 +54,19 @@ PAPER_REPORTED = {
     "Discharge": (9.8, 13.0, 8.6),
     "Full": (5.6, 14.1, 10.7),
 }
+
+
+# 원논문의 분류 실험: 초기 5 사이클, 로지스틱 회귀, 기준선 550 사이클 (Supplementary Note 4)
+CLASSIFIER_CYCLES = 5
+# 후보 20개 중 "마지막 10 사이클의 추세" 두 개는 5 사이클에서 정의되지 않아 원논문도 뺐다
+_NO_LATE_TREND = tuple(f for f in FADE_CURVE if not f.endswith("_late"))
+PAPER_CLASSIFIERS = {
+    "Variance classifier": (models.CORE_FEATURE,),
+    "Full classifier": DELTA_Q + _NO_LATE_TREND + TEMPERATURE_AND_TIME + RESISTANCE,
+    "Full classifier (IR 제외)": DELTA_Q + _NO_LATE_TREND + TEMPERATURE_AND_TIME,
+}
+# 원논문 Table 2 의 2차 테스트 정확도. Train 은 82.1% / 97.4%, 1차 테스트는 78.6% / 92.7% 였다
+PAPER_SECONDARY_TEST_ACCURACY = {"Variance classifier": 0.975, "Full classifier": 0.975}
 
 
 def with_complete_cells(data: ExperimentData, features: tuple[str, ...], seed: int) -> ExperimentData:
@@ -95,20 +113,61 @@ def comparison_table(data: ExperimentData, seed: int = config.SEED) -> pd.DataFr
     return pd.DataFrame(rows)
 
 
+def logistic_screen(data: ExperimentData, features: tuple[str, ...]) -> Screen:
+    """l1 규제 로지스틱 회귀. 단수명 확률이 0.5 이상이면 단수명으로 판정한다 (원논문과 같은 판정 기준).
+
+    학습 셀에 단수명이 1개뿐이라 규제 강도를 교차검증으로 정할 수 없다. 기본값(C = 1)을 쓴다.
+    """
+
+    def screen(case: EvalCase) -> Verdict:
+        X = data.features.loc[case.fit_keys, list(features)]
+        is_short = data.cells.loc[case.fit_keys, "cycle_life"] < config.SHORT_LIFE_THRESHOLD
+        classifier = LogisticRegression(penalty="l1", solver="liblinear", random_state=config.SEED)
+        model = make_pipeline(StandardScaler(), classifier).fit(X, is_short)
+        probability = model.predict_proba(data.features.loc[case.eval_keys, list(features)])[:, 1]
+        return Verdict(probability >= 0.5, probability)
+
+    return screen
+
+
+def classifier_table(data: ExperimentData, seed: int = config.SEED) -> pd.DataFrame:
+    """원논문 분류기 구성별 성능. 피처는 초기 5 사이클로 다시 계산한다."""
+    names = tuple(dict.fromkeys(f for features in PAPER_CLASSIFIERS.values() for f in features))
+    early = replace(data, features=build_feature_table(load_dataset(), CLASSIFIER_CYCLES, names))
+    rows = []
+    for name, features in PAPER_CLASSIFIERS.items():
+        usable = with_complete_cells(early, features, seed)
+        screen = logistic_screen(usable, features)
+        for case in evaluation_cases(usable):
+            metrics = evaluate_screen(screen, [case], usable.cells["cycle_life"])
+            # 원논문의 2차 테스트가 이 데이터셋의 Batch 3 다. 다른 분할에는 대응하는 원논문 수치가 없다
+            reported = PAPER_SECONDARY_TEST_ACCURACY.get(name) if case.name == "test_b3" else None
+            rows.append(
+                {"model": name, "n_features": len(features), "split": case.name}
+                | metrics
+                | {"paper_accuracy": reported}
+            )
+    return pd.DataFrame(rows)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="원논문 모델 구성의 재구현과 비교")
     parser.add_argument("--seed", type=int, default=config.SEED)
     parser.add_argument("--out", type=Path, default=config.RESULTS_DIR)
     args = parser.parse_args()
 
-    table = comparison_table(prepare_data(args.seed), args.seed)
+    data = prepare_data(args.seed)
+    table = comparison_table(data, args.seed)
+    classifiers = classifier_table(data, args.seed)
     args.out.mkdir(parents=True, exist_ok=True)
     table.round(2).to_csv(args.out / "paper_models.csv", index=False)
+    classifiers.round(3).to_csv(args.out / "paper_classifiers.csv", index=False)
     pd.set_option("display.width", 250)
     pd.set_option("display.max_colwidth", 200)
     print(table.drop(columns="selected_features").round(2).to_string(index=False))
     for _, row in table.iterrows():
         print(f"\n[{row['model']}] 선택된 피처 {row['n_selected']}개 : {row['selected_features']}")
+    print("\n[원논문 분류기 구성 : 초기 5 사이클]\n", classifiers.round(3).to_string(index=False))
 
 
 if __name__ == "__main__":
