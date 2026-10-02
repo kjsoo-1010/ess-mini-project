@@ -1,0 +1,11 @@
+seed,features,decision,train_loo,valid,test_b2,test_b3
+0,log_dq_var+log_dq_at_2v,0.2,0.906,0.778,0.769,0.975
+1,log_dq_var+qd_rise,0.2,0.906,0.778,0.974,0.975
+2,log_dq_var+qd_rise,0.2,0.906,0.889,0.974,0.975
+3,log_dq_var+qd_rise,0.2,0.906,0.778,0.974,0.975
+4,log_dq_var+qd_rise,0.1,0.875,0.889,0.974,0.975
+5,log_dq_var,0.2,0.906,0.889,0.821,1.0
+6,log_dq_var+log_dq_mean,0.3,0.906,0.889,0.641,1.0
+7,log_dq_var+qd_rise,0.1,0.938,0.667,0.974,0.975
+8,log_dq_var+qd_rise,0.1,0.906,0.778,0.974,0.975
+9,log_dq_var+log_dq_at_2v,0.2,0.906,0.778,0.769,0.975

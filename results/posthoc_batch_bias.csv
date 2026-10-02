@@ -1,0 +1,5 @@
+group,n,bias_log10,predicted_over_actual,mape,mape_bias_removed
+test_b2 / general,30,0.1,1.258,26.67,9.5
+test_b2 / newstructure,9,0.089,1.227,24.526,14.113
+test_b3 / newstructure,40,0.023,1.054,13.253,11.502
+valid / general,9,0.001,1.003,8.871,8.745

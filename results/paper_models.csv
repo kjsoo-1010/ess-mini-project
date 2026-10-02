@@ -1,0 +1,5 @@
+model,n_candidates,n_selected,cv_mape,valid_mape,test_b2_mape,test_b3_mape,n_test_b2,n_test_b3,paper_train,paper_primary_test,paper_secondary_test,selected_features
+Variance,1,1,9.28,8.87,26.17,13.25,39,40,14.1,14.7,11.4,log_dq_var
+Discharge,13,8,7.59,7.09,32.79,9.14,39,40,9.8,13.0,8.6,"log_dq_min, log_dq_mean, log_dq_var, log_dq_skew, log_dq_kurt, qd_intercept_late, qd_rise, qd_last"
+Full,20,11,9.8,9.77,34.25,9.11,33,40,5.6,14.1,10.7,"log_dq_min, log_dq_mean, log_dq_var, log_dq_kurt, qd_intercept_late, qd_rise, qd_last, chargetime_first5, tmax_max, temp_integral, ir_min"
+Full (IR 제외),17,10,10.01,9.58,35.31,9.1,39,40,,,,"log_dq_min, log_dq_mean, log_dq_var, log_dq_kurt, qd_intercept_late, qd_rise, qd_last, chargetime_first5, tmax_max, temp_integral"

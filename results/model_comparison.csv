@@ -1,0 +1,11 @@
+model,family,n_features,cv_mape,cv_std,cv_se,test_b2_mape,test_b3_mape,valid_mape
+gradient_boosting[all],tree,4,9.1,2.82,0.4,28.85,11.91,12.37
+linear[log_dq_var_smooth],linear,1,9.25,2.95,0.42,28.28,13.17,8.49
+linear[core+chargetime_median],linear,2,9.26,2.99,0.42,25.85,11.78,10.56
+linear[core],linear,1,9.28,3.01,0.43,26.17,13.25,8.87
+linear[core+tavg_mean],linear,2,9.62,2.96,0.42,26.48,12.48,8.43
+ridge[all],regularized,4,10.16,3.44,0.49,27.56,13.54,12.1
+random_forest[all],tree,4,10.2,3.33,0.47,32.72,12.15,10.44
+elastic_net[all],regularized,4,10.54,3.72,0.53,23.48,11.77,12.37
+linear[core+qd_fade],linear,2,11.03,4.46,0.63,23.68,14.81,8.29
+mean,baseline,1,23.35,5.52,0.78,73.24,18.79,24.6
