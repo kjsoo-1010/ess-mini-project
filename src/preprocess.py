@@ -34,7 +34,8 @@ class Dataset:
     """셀 단위로 정렬된 데이터 묶음.
 
     cells   : index=cell_key, columns=[batch, cell_id, policy, cycle_life]
-    summary : 사이클당 한 행. columns=[cell_key, cycle, QD, QC, IR, Tavg, Tmax, Tmin, chargetime]
+    summary : 사이클당 한 행. columns=[cell_key, cycle, QD, QC, IR, Tavg, Tmax, Tmin, chargetime, T_integral]
+              T_integral 은 사이클 내부 시계열에서 계산한 온도의 시간 적분이며 초기 사이클에만 값이 있다
     qdlin   : (셀 수, 사이클 수, 전압 지점 수). 셀 순서는 cells.index 와 같고 cycle n 은 [:, n - 1, :]
     vdlin   : qdlin 의 전압 축
     """
@@ -93,6 +94,17 @@ def _read_qdlin(f: h5py.File, cycles: h5py.Group, n_cycles: int, n_points: int) 
     return out
 
 
+def _read_temperature_integral(f: h5py.File, cycles: h5py.Group, n_cycles: int) -> np.ndarray:
+    """초기 n_cycles 의 사이클별 온도 시간 적분 (°C·분). 측정값이 없는 사이클은 NaN."""
+    out = np.full(n_cycles, np.nan)
+    for j in range(min(n_cycles, cycles["T"].shape[0])):
+        temperature = np.array(f[cycles["T"][j, 0]]).ravel()
+        time = np.array(f[cycles["t"][j, 0]]).ravel()
+        if temperature.size > 2 and temperature.size == time.size:
+            out[j] = np.trapezoid(temperature, time)
+    return out
+
+
 def clean_summary(summary: pd.DataFrame) -> pd.DataFrame:
     """측정값으로 볼 수 없는 값을 제거한다. 세 배치에 같은 규칙을 적용한다."""
     out = summary[summary["QD"] > 0].copy()  # 측정값 없이 0 으로 채워진 사이클 (Batch 1 의 cycle 1)
@@ -126,8 +138,12 @@ def load_batch(spec: BatchSpec, data_dir: Path, n_cycles: int = config.EARLY_CYC
             frame = pd.DataFrame({name: np.array(raw[field]).ravel() for field, name in SUMMARY_FIELDS.items()})
             frame.insert(0, "cycle", np.array(raw["cycle"]).ravel().astype(int))
             frame.insert(0, "cell_key", cell_key)
+            cycles = f[batch["cycles"][cell_id, 0]]
+            integral = _read_temperature_integral(f, cycles, n_cycles)
+            frame["T_integral"] = np.nan
+            frame.loc[: min(n_cycles, len(frame)) - 1, "T_integral"] = integral[: len(frame)]
             summaries.append(frame)
-            curves.append(_read_qdlin(f, f[batch["cycles"][cell_id, 0]], n_cycles, vdlin.size))
+            curves.append(_read_qdlin(f, cycles, n_cycles, vdlin.size))
     return Dataset(
         cells=pd.DataFrame(cells).set_index("cell_key"),
         summary=clean_summary(pd.concat(summaries, ignore_index=True)),

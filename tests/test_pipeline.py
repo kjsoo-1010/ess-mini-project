@@ -15,6 +15,7 @@ from src.evaluation import (
 )
 from src.features import build_feature_table
 from src.preprocess import Dataset, clean_summary
+from src.replication import with_complete_cells
 from src.screening import FeatureSet, MahalanobisDetector, conformal_margin, detector_screen, lower_bound
 from src.train import ExperimentData
 from src.zeroshot import LinearGaussianGenerator, ZeroShotClassifier, select_spec
@@ -42,6 +43,7 @@ def dataset() -> Dataset:
             "Tmax": 36.0,
             "Tmin": 30.0,
             "chargetime": rng.normal(10.0, 0.1, N_CELLS * N_CYCLES),
+            "T_integral": 1700.0,
         }
     )
     cells = pd.DataFrame(
@@ -61,7 +63,7 @@ def test_features_ignore_cycles_after_input_window(dataset: Dataset) -> None:
     tampered_curves = dataset.qdlin.copy()
     tampered_curves[:, 100:] = 999.0
     tampered_summary = dataset.summary.copy()
-    tampered_summary.loc[tampered_summary["cycle"] > 100, ["QD", "IR", "Tavg", "chargetime"]] = 999.0
+    tampered_summary.loc[tampered_summary["cycle"] > 100, ["QD", "IR", "Tavg", "chargetime", "T_integral"]] = 999.0
     tampered = Dataset(dataset.cells, tampered_summary, tampered_curves, dataset.vdlin)
 
     pd.testing.assert_frame_equal(build_feature_table(dataset, 100), build_feature_table(tampered, 100))
@@ -211,3 +213,18 @@ def test_select_spec_prefers_higher_h_then_fewer_features() -> None:
     )
     assert select_spec(validation).name == "a+c"
     assert select_spec(validation[validation["features"] != "a+c"]).name == "a"  # 동률이면 피처가 적은 쪽
+
+
+def test_with_complete_cells_drops_cells_missing_a_feature() -> None:
+    keys = pd.Index([f"c{i}" for i in range(24)])
+    features = pd.DataFrame({"a": 1.0, "ir": 1.0}, index=keys)
+    features.loc[keys[20:], "ir"] = np.nan  # 테스트 배치의 일부 셀에 측정값이 없다
+    cells = pd.DataFrame(
+        {"batch": ["Batch 1"] * 16 + ["Batch 2"] * 8, "cycle_life": np.linspace(500, 2000, 24).astype(int)}, index=keys
+    )
+    data = ExperimentData(features=features, cells=cells, split=Split(train=keys[:12], valid=keys[12:16]))
+
+    assert len(with_complete_cells(data, ("a",), seed=0).cells) == 24
+    usable = with_complete_cells(data, ("a", "ir"), seed=0)
+    assert len(usable.cells) == 20
+    assert set(usable.split.train) | set(usable.split.valid) == set(keys[:16])  # Batch 1 은 그대로 남는다

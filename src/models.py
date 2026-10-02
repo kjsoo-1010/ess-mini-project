@@ -48,7 +48,7 @@ def _ridge() -> RegressorMixin:
     return RidgeCV(alphas=np.logspace(-3, 3, 25))
 
 
-def _elastic_net() -> RegressorMixin:
+def elastic_net() -> RegressorMixin:
     return ElasticNetCV(l1_ratio=[0.1, 0.5, 0.9], cv=5, max_iter=50_000, random_state=config.SEED)
 
 
@@ -84,7 +84,7 @@ def multi_feature_models(features: tuple[str, ...]) -> list[ModelSpec]:
     """같은 피처 묶음에 대한 규제 선형 모델과 트리 모델."""
     return [
         ModelSpec("ridge[all]", "regularized", features, _ridge),
-        ModelSpec("elastic_net[all]", "regularized", features, _elastic_net),
+        ModelSpec("elastic_net[all]", "regularized", features, elastic_net),
         ModelSpec("random_forest[all]", "tree", features, _random_forest),
         ModelSpec("gradient_boosting[all]", "tree", features, _gradient_boosting),
     ]
